@@ -16,6 +16,7 @@ class MessageType(Enum):
     STATUS = "status"
     ERROR = "error"
     COMMAND = "command"
+    CHANGE = "change"
 
 class UserStatus(Enum):
     ONLINE = "online"
@@ -61,6 +62,7 @@ class MessageParser:
     COMMAND_PREFIX = '/'
     COMMANDS = {
         'help': 'Show available commands',
+        'change': 'Change your username',
         'join': 'Join a room: /join room_name',
         'leave': 'Leave current room',
         'list': 'List all available rooms',
@@ -168,6 +170,8 @@ def format_message(message: Message) -> str:
         return f"[{timestamp}] → {message.sender} joined the chat"
     elif message.type == MessageType.LEAVE:
         return f"[{timestamp}] ← {message.sender} left the chat"
+    elif message.type == MessageType.CHANGE:
+        return f"[{timestamp}] Your changed your name to: {message.content}"
     else:
         return f"[{timestamp}] {message.sender}: {message.content}"
 

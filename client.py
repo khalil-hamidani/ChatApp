@@ -5,7 +5,7 @@ import time
 from utils import Message, MessageType, MessageParser, Security, format_message
 
 class EnhancedChatClient:
-    def __init__(self, host='localhost', port=5500):
+    def __init__(self, host='localhost', port=5000):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.host = host
         self.port = port
@@ -72,6 +72,12 @@ class EnhancedChatClient:
                 if msg.type == MessageType.SYSTEM and "Welcome!" in msg.content:
                     self.connected.set()
                 
+                # # Check for username change confirmation and update the username
+                # if msg.type == MessageType.SYSTEM and "your username has been changed to" in msg.content:
+                #     new_username = msg.content.split("your username has been changed to ")[1]
+                #     self.username = new_username  # Update the stored username
+                #     # print(f"Your username has been updated tttto {self.username}")
+                
                 formatted_msg = format_message(msg)
                 print(formatted_msg)
                 
@@ -111,11 +117,18 @@ class EnhancedChatClient:
                 self.disconnect_from_server()
                 break
 
+    # def handle_username_change(self, message):
+    #     """Update the local username and display the change"""
+    #     old_username, new_username = message.content.split(' has changed their username to ')
+    #     if old_username == self.username:
+    #         self.username = new_username
+    #         print(f"Your username has been changed to {new_username}.")
+    #     else:
+    #         print(f"{old_username} has changed their username to {new_username}.")
+
     def send_message(self, message):
-        """Send a message to the server"""
+        """Send a message to the server with the updated username"""
         try:
-            # Sanitize input
-            message = Security.sanitize_input(message)
             self.client_socket.send(message.encode('utf-8'))
         except Exception as e:
             print(f"Error sending message: {e}")

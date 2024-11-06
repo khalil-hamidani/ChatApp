@@ -4,9 +4,8 @@ from datetime import datetime
 from utils import Message, MessageType, MessageParser, logging, Security, RateLimiter, ChatRoom, format_message
 
 class EnhancedChatServer:
-    def __init__(self, host='localhost', port=5500):
+    def __init__(self, host='localhost', port=5000):
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # Add this line to allow socket reuse
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.host = host
         self.port = port
@@ -125,6 +124,53 @@ class EnhancedChatServer:
             self.logger.error(f"Authentication error for {client_address}: {e}")
             if client_socket:
                 client_socket.close()
+
+    def change_username(self, client_socket, new_username):
+        current_username = self.clients[client_socket][1]
+        
+        new_username = Security.sanitize_input(new_username.strip())
+        #check if the username is valid
+        if not MessageParser.validate_username(new_username):
+            error_msg = Message(
+                type=MessageType.ERROR, content="Invalid user name format, Please try again.",
+                sender = "System"
+            )
+            client_socket.send(error_msg.to_json().encode('UTF-8'))
+            return
+        # check if the username already in use:
+        if any(new_username == client_data[1] for client_data in self.clients.values()):
+            error_msg = Message(
+                type= MessageType.ERROR,
+                content="Username already taken, Please choose another one.",
+                sender="System"
+            )
+            client_socket.send(error_msg.to_json().encode('UTF-8'))
+            return 
+        #now we change the username in the clients class
+        self.clients[client_socket] = (self.clients[client_socket][0],new_username)
+        
+        # Find the current room of the user and update the username
+        current_room = next((room for room in self.rooms.values() if current_username in room.users), None)
+        if current_room:
+            current_room.users.remove(current_username)
+            current_room.users.add(new_username)
+        #send confirmation msg
+        success_msg = Message(
+            type= MessageType.SYSTEM,
+            content=f"your username has been changed to {new_username}.",
+            sender="System",
+            room= current_room.name if current_room else "main"
+        )
+        client_socket.send(success_msg.to_json().encode('utf-8'))
+        # Notify other users about the username change
+        change_msg = Message(
+        type=MessageType.CHANGE,
+            content=f"{current_username} has changed their username to {new_username}.",
+            sender="System",
+            room="main"
+        )
+        self.broadcast_message(change_msg, exclude_socket=client_socket, room=current_room.name if current_room else "main")
+        self.logger.info(f"User {current_username} changed username to {new_username}")
 
     def list_room_users(self, client_socket: socket.socket) -> None:
         """List users in current room"""
@@ -327,11 +373,13 @@ class EnhancedChatServer:
         finally:
             self.handle_client_disconnect(client_socket)
 
-    def broadcast_message(self, message: Message, exclude_socket=None):
+    def broadcast_message(self, message: Message, exclude_socket=None, room=None):
         """Broadcast a message to all clients except the excluded socket"""
         message_json = message.to_json()
         
-        for client_socket in list(self.clients.keys()):  # Create a copy of keys to avoid runtime modification issues
+        for client_socket, client_data in self.clients.items():  # Iterate over both socket and client data
+            if room and client_data[1] not in self.rooms[room].users:
+                continue
             if client_socket != exclude_socket:
                 try:
                     client_socket.send(message_json.encode('utf-8'))
@@ -389,6 +437,9 @@ class EnhancedChatServer:
             
         elif command == 'users':
             self.list_room_users(client_socket)
+            
+        elif command == 'change' and len(args) == 1:
+            self.change_username(client_socket,args[0])
             
         elif command == 'msg' and len(args) >= 2:
             target_user = args[0]
