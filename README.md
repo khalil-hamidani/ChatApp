@@ -2,7 +2,7 @@
 
 This is a multi-client chat application built using socket programming and multi-threading in Python. It allows users to connect to a central server, send and receive messages, create and join private chat channels, and perform various other chat-related functionalities.
 
-This project is made by [khalil-hamidani](https://github.com/khalil-hamidani) and [Aymen-ghb]().
+This project is made by [khalil-hamidani](https://github.com/khalil-hamidani) and [Aymen-Ghebriou](https://github.com/Ghebriou).
 
 ## Features
 
@@ -43,10 +43,10 @@ Here are some screenshots showcasing the application:
 ![Client Interface](screenshots/client.png)
 *Client application with chat functionality*
 
-![Private Messages](screenshots/private_channel.png)
+![Private Messages](screenshots/private.png)
 *Clients joining and chatting in a private channel*
 
-![Rooms](screenshots/private_channel.png)
+![Rooms](screenshots/rooms.png)
 *Clients joining and chatting in other rooms*
 
 ## Usage
