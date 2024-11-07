@@ -4,3 +4,4 @@ __pycache__/
 chat_server.log
 dump.py
 LocalNetwork.md
+.vscode/

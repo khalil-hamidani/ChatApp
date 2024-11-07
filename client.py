@@ -2,17 +2,17 @@ import socket
 import threading
 import json
 import time
-from utils import Message, MessageType, MessageParser, Security, format_message
+from colorama import Fore, Style # type: ignore
+from utils import Message, MessageType, MessageParser, format_message
 
 class EnhancedChatClient:
-    def __init__(self, host='localhost', port=5000):
+    def __init__(self, host='localhost', port=3000):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.host = host
         self.port = port
         self.running = False
         self.username = None
         self.connected = threading.Event()
-
     def connect_to_server(self):
         try:
             self.client_socket.connect((self.host, self.port))
@@ -37,7 +37,6 @@ class EnhancedChatClient:
             self.disconnect_from_server()
 
     def handle_authentication(self):
-        """Handle the authentication process with the server"""
         try:
             # Wait for welcome message
             self.connected.wait(timeout=5.0)  # Wait up to 5 seconds for welcome message
@@ -56,7 +55,6 @@ class EnhancedChatClient:
             self.running = False
 
     def receive_messages(self):
-        """Receive and process messages from the server"""
         while self.running:
             try:
                 data = self.client_socket.recv(1024).decode('utf-8')
@@ -71,13 +69,7 @@ class EnhancedChatClient:
                 # Set connected event when we receive the welcome message
                 if msg.type == MessageType.SYSTEM and "Welcome!" in msg.content:
                     self.connected.set()
-                
-                # # Check for username change confirmation and update the username
-                # if msg.type == MessageType.SYSTEM and "your username has been changed to" in msg.content:
-                #     new_username = msg.content.split("your username has been changed to ")[1]
-                #     self.username = new_username  # Update the stored username
-                #     # print(f"Your username has been updated tttto {self.username}")
-                
+              
                 formatted_msg = format_message(msg)
                 print(formatted_msg)
                 
@@ -94,9 +86,8 @@ class EnhancedChatClient:
                 break
 
     def handle_user_input(self):
-        """Handle user input and commands"""
         print("\nChat commands:")
-        print("\n".join([f"{cmd}: {desc}" for cmd, desc in MessageParser.COMMANDS.items()]))
+        print(Fore.CYAN+"\n".join([f"{cmd}: {desc}" for cmd, desc in MessageParser.COMMANDS.items()])+Style.RESET_ALL )
         print("\nStart chatting (type '/quit' to exit):")
         
         while self.running:
@@ -105,7 +96,6 @@ class EnhancedChatClient:
                 if message.lower() == '/quit':
                     self.disconnect_from_server()
                     break
-                    
                 if message:
                     self.send_message(message)
                     
@@ -117,17 +107,7 @@ class EnhancedChatClient:
                 self.disconnect_from_server()
                 break
 
-    # def handle_username_change(self, message):
-    #     """Update the local username and display the change"""
-    #     old_username, new_username = message.content.split(' has changed their username to ')
-    #     if old_username == self.username:
-    #         self.username = new_username
-    #         print(f"Your username has been changed to {new_username}.")
-    #     else:
-    #         print(f"{old_username} has changed their username to {new_username}.")
-
     def send_message(self, message):
-        """Send a message to the server with the updated username"""
         try:
             self.client_socket.send(message.encode('utf-8'))
         except Exception as e:
@@ -136,7 +116,7 @@ class EnhancedChatClient:
 
     def disconnect_from_server(self):
         """Disconnect from the server"""
-        print("Disconnecting from server...")
+        print(Fore.RED +"Disconnecting from server..."+Style.RESET_ALL)
         self.running = False
         try:
             self.client_socket.close()

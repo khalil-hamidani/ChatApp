@@ -1,10 +1,10 @@
 import socket
 import threading
-from datetime import datetime
-from utils import Message, MessageType, MessageParser, logging, Security, RateLimiter, ChatRoom, format_message
+from colorama import Fore, Style # type: ignore
+from utils import Message, MessageType, MessageParser, logging, Security, RateLimiter, ChatRoom, format_message  # noqa: F401
 
 class EnhancedChatServer:
-    def __init__(self, host='localhost', port=5000):
+    def __init__(self, host='localhost', port=3000):
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.host = host
@@ -43,7 +43,7 @@ class EnhancedChatServer:
                     # Send welcome message immediately after connection
                     welcome_msg = Message(
                         type=MessageType.SYSTEM,
-                        content="Welcome! Please enter your username:",
+                        content="Welcome to the server! Please enter your username:",
                         sender="System"
                     )
                     try:
@@ -124,56 +124,61 @@ class EnhancedChatServer:
             self.logger.error(f"Authentication error for {client_address}: {e}")
             if client_socket:
                 client_socket.close()
-
+    #foncton ta3 zebi
     def change_username(self, client_socket, new_username):
         current_username = self.clients[client_socket][1]
-        
         new_username = Security.sanitize_input(new_username.strip())
-        #check if the username is valid
+
+        # Check if the new username is valid
         if not MessageParser.validate_username(new_username):
             error_msg = Message(
-                type=MessageType.ERROR, content="Invalid user name format, Please try again.",
-                sender = "System"
-            )
-            client_socket.send(error_msg.to_json().encode('UTF-8'))
-            return
-        # check if the username already in use:
-        if any(new_username == client_data[1] for client_data in self.clients.values()):
-            error_msg = Message(
-                type= MessageType.ERROR,
-                content="Username already taken, Please choose another one.",
+                type=MessageType.ERROR,
+                content=Fore.RED+"Invalid username format. Please try again."+Style.RESET_ALL,
                 sender="System"
             )
             client_socket.send(error_msg.to_json().encode('UTF-8'))
-            return 
-        #now we change the username in the clients class
-        self.clients[client_socket] = (self.clients[client_socket][0],new_username)
-        
+            return
+
+        # Check if the new username is already in use
+        if any(new_username == client_data[1] for client_data in self.clients.values()):
+            error_msg = Message(
+                type=MessageType.ERROR,
+                content="Username already taken. Please choose another one.",
+                sender="System"
+            )
+            client_socket.send(error_msg.to_json().encode('UTF-8'))
+            return
+
+        # Update the username in the clients dictionary
+        self.clients[client_socket] = (self.clients[client_socket][0], new_username)
+
         # Find the current room of the user and update the username
         current_room = next((room for room in self.rooms.values() if current_username in room.users), None)
         if current_room:
             current_room.users.remove(current_username)
             current_room.users.add(new_username)
-        #send confirmation msg
+
+        # Send confirmation message to the client
         success_msg = Message(
-            type= MessageType.SYSTEM,
-            content=f"your username has been changed to {new_username}.",
+            type=MessageType.CHANGE,
+            content=f"Your username has been changed to {new_username}.",
             sender="System",
-            room= current_room.name if current_room else "main"
+            room=current_room.name if current_room else "main"
         )
         client_socket.send(success_msg.to_json().encode('utf-8'))
+
         # Notify other users about the username change
         change_msg = Message(
-        type=MessageType.CHANGE,
+            type=MessageType.CHANGE,
             content=f"{current_username} has changed their username to {new_username}.",
             sender="System",
             room="main"
         )
-        self.broadcast_message(change_msg, exclude_socket=client_socket, room=current_room.name if current_room else "main")
+        self.broadcast_to_room(change_msg, room_name="main", exclude_socket=client_socket)
+
         self.logger.info(f"User {current_username} changed username to {new_username}")
 
     def list_room_users(self, client_socket: socket.socket) -> None:
-        """List users in current room"""
         username = self.clients[client_socket][1]
         current_room = None
         
@@ -193,7 +198,6 @@ class EnhancedChatServer:
             client_socket.send(msg.to_json().encode('utf-8'))
             
     def join_room(self, client_socket: socket.socket, room_name: str) -> None:
-        """Handle a user joining a room"""
         if not MessageParser.validate_room_name(room_name):
             error_msg = Message(
                 type=MessageType.ERROR,
@@ -266,7 +270,6 @@ class EnhancedChatServer:
         self.broadcast_to_room(join_msg, room_name, exclude_socket=client_socket)
 
     def leave_room(self, client_socket: socket.socket) -> None:
-        """Handle a user leaving their current room"""
         username = self.clients[client_socket][1]
         current_room = None
         
@@ -321,7 +324,6 @@ class EnhancedChatServer:
         self.logger.debug(f"Message broadcast to {recipients} users in room {room_name}")
 
     def list_rooms(self, client_socket: socket.socket) -> None:
-        """Send list of available rooms to client"""
         room_list = []
         for room in self.rooms.values():
             room_list.append(f"{room.name} ({len(room.users)}/{room.max_users} users)")
@@ -336,7 +338,6 @@ class EnhancedChatServer:
     def handle_client(self, client_socket):
         try:
             username = self.clients[client_socket][1]
-            address = self.clients[client_socket][0]
             
             while True:
                 data = client_socket.recv(1024).decode('utf-8')
@@ -352,7 +353,7 @@ class EnhancedChatServer:
                     )
                     client_socket.send(error_msg.to_json().encode('utf-8'))
                     continue
-                
+                username = self.clients[client_socket][1]
                 if MessageParser.is_command(data):
                     self.logger.info(f"Command from {username}: {data}")
                     self.handle_command(client_socket, data)
@@ -374,7 +375,6 @@ class EnhancedChatServer:
             self.handle_client_disconnect(client_socket)
 
     def broadcast_message(self, message: Message, exclude_socket=None, room=None):
-        """Broadcast a message to all clients except the excluded socket"""
         message_json = message.to_json()
         
         for client_socket, client_data in self.clients.items():  # Iterate over both socket and client data
@@ -403,7 +403,7 @@ class EnhancedChatServer:
                 sender=username
             )
             self.broadcast_message(leave_msg, exclude_socket=client_socket)
-            
+            #yroh ya3ti l client
             self.logger.info(f"User {username} ({address}) disconnected")
             
             del self.clients[client_socket]
@@ -413,7 +413,6 @@ class EnhancedChatServer:
                 self.logger.error(f"Error closing socket for {username}: {e}")
 
     def handle_command(self, client_socket, command_str):
-        """Enhanced command handler with room support"""
         username = self.clients[client_socket][1]
         command, args = MessageParser.parse_command(command_str)
         

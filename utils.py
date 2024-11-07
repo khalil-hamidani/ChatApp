@@ -4,8 +4,9 @@ from enum import Enum
 from typing import Dict, Any, Optional
 import re
 import hashlib
-import logging
-from dataclasses import dataclass, asdict
+import logging  # noqa: F401
+from dataclasses import dataclass, asdict  # noqa: F401
+from colorama import Fore, Style, init  # type: ignore # noqa: F401
 
 class MessageType(Enum):
     CHAT = "chat"
@@ -57,8 +58,6 @@ class Message:
         return cls(**data)
 
 class MessageParser:
-    """Parse and validate chat messages"""
-    
     COMMAND_PREFIX = '/'
     COMMANDS = {
         'help': 'Show available commands',
@@ -67,18 +66,15 @@ class MessageParser:
         'leave': 'Leave current room',
         'list': 'List all available rooms',
         'users': 'List all online users',
-        'msg': 'Send private message: /msg username message',
-        'status': 'Change status: /status [online|away|busy]'
+        'msg': 'Send private message: /msg username message'
     }
 
     @staticmethod
     def is_command(message: str) -> bool:
-        """Check if message is a command"""
         return message.startswith(MessageParser.COMMAND_PREFIX)
 
     @staticmethod
     def parse_command(message: str) -> tuple[str, list[str]]:
-        """Parse command and arguments"""
         parts = message[1:].split()  # Remove prefix and split
         command = parts[0].lower()
         args = parts[1:] if len(parts) > 1 else []
@@ -86,41 +82,32 @@ class MessageParser:
 
     @staticmethod
     def validate_username(username: str) -> bool:
-        """Validate username format"""
         pattern = r'^[a-zA-Z0-9_-]{3,16}$'
         return bool(re.match(pattern, username))
 
     @staticmethod
     def validate_room_name(room: str) -> bool:
-        """Validate room name format"""
         pattern = r'^[a-zA-Z0-9_-]{1,32}$'
         return bool(re.match(pattern, room))
 
-class Security:
-    """Security-related utilities"""
-    
+class Security: 
     @staticmethod
     def hash_password(password: str) -> str:
-        """Hash password using SHA-256"""
         return hashlib.sha256(password.encode()).hexdigest()
 
     @staticmethod
     def sanitize_input(text: str) -> str:
-        """Sanitize user input to prevent XSS"""
         # Remove HTML tags
         text = re.sub(r'<[^>]*>', '', text)
         return text
 
 class RateLimiter:
-    """Simple rate limiting utility"""
-    
     def __init__(self, max_messages: int = 10, window_seconds: int = 60):
         self.max_messages = max_messages
         self.window_seconds = window_seconds
         self.message_times: Dict[str, list[datetime]] = {}
 
     def can_send_message(self, user_id: str) -> bool:
-        """Check if user can send a message based on rate limit"""
         now = datetime.now()
         
         # Initialize or clean old messages
@@ -141,8 +128,6 @@ class RateLimiter:
         return False
 
 class ChatRoom:
-    """Utility class for managing chat rooms"""
-    
     def __init__(self, name: str, description: str = "", max_users: int = 100):
         self.name = name
         self.description = description
@@ -160,23 +145,21 @@ class ChatRoom:
         }
 
 def format_message(message: Message) -> str:
-    """Format message for display"""
     timestamp = datetime.fromisoformat(message.timestamp).strftime("%H:%M:%S")
     if message.type == MessageType.SYSTEM:
-        return f"[{timestamp}] System: {message.content}"
+        return Fore.YELLOW +f"[{timestamp}] System: {message.content}"+Style.RESET_ALL
     elif message.type == MessageType.PRIVATE:
-        return f"[{timestamp}] (Private) {message.sender} → {message.receiver}: {message.content}"
+        return Fore.BLUE +f"[{timestamp}] (Private) {message.sender} → {message.receiver}: {message.content}"+Style.RESET_ALL
     elif message.type == MessageType.JOIN:
-        return f"[{timestamp}] → {message.sender} joined the chat"
+        return Fore.GREEN +f"[{timestamp}] → {message.sender} joined the chat"+Style.RESET_ALL
     elif message.type == MessageType.LEAVE:
-        return f"[{timestamp}] ← {message.sender} left the chat"
+        return Fore.RED +f"[{timestamp}] ← {message.sender} left the chat"+Style.RESET_ALL
     elif message.type == MessageType.CHANGE:
-        return f"[{timestamp}] Your changed your name to: {message.content}"
+        return Fore.RED +f"[{timestamp}] {message.content}"+Style.RESET_ALL
     else:
         return f"[{timestamp}] {message.sender}: {message.content}"
 
 def create_error_message(error_text: str) -> Message:
-    """Create an error message"""
     return Message(
         type=MessageType.ERROR,
         content=error_text,
@@ -184,7 +167,6 @@ def create_error_message(error_text: str) -> Message:
     )
 
 def create_system_message(content: str) -> Message:
-    """Create a system message"""
     return Message(
         type=MessageType.SYSTEM,
         content=content,
