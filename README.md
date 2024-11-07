@@ -65,15 +65,23 @@ cd ChatApp
 ```bash
 pip install -r requirements.txt
 ```
-4. Run the server on the first terminal:
+4. For local network usage (multiple devices):
+- Connect all devices to the same network
+- Edit the IP address in both `server.py` and `client.py` files
+```py
+def __init__(self, host='localhost', port=3000):
+```
+- Use the server machine's local IP address (e.g., 192.168.1.X)
+
+5. Run the server on the first terminal:
 ```bash
 python server.py
 ```
-5. Run the client(s) in other terminal(s):
+6. Run the client(s) in other terminal(s):
 ```bash
 python client.py
 ```
-6. Interacting with the chat application using the provided commands.
+7. Interacting with the chat application using the provided commands.
 
 ## Dependencies
 
